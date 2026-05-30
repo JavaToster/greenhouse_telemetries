@@ -1,0 +1,54 @@
+databaseChangeLog:
+  - changeSet:
+      id: 20260530-1
+      author: TosterW
+      changes:
+        - createTable:
+            tableName: telemetries
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_telemetries
+              - column:
+                  name: device_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: temperature
+                  type: double precision
+                  constraints:
+                    nullable: false
+              - column:
+                  name: air_humidity
+                  type: double precision
+                  constraints:
+                    nullable: false
+              - column:
+                  name: soil_humidity
+                  type: double precision
+                  constraints:
+                    nullable: false
+              - column:
+                  name: illumination
+                  type: double precision
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_telemetry_device_created
+            tableName: telemetries
+            columns:
+              - column:
+                  name: device_id
+              - column:
+                  name: created_at
+                  descending: true
