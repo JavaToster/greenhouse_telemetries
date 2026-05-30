@@ -14,6 +14,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import java.util.stream.Collectors;
 
 @Slf4j
 @ControllerAdvice
@@ -28,9 +29,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDTO> exceptionHandle(MethodArgumentNotValidException exc) {
-        log.warn("Validation error: {}", exc.getMessage());
+        // Собираем все ошибки валидации полей в одну строчку для лога
+        String detailedMessage = exc.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("Validation failed: [{}]", detailedMessage);
+
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), exc.getMessage()));
+                .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), "Validation error: " + detailedMessage));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -49,7 +55,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponseDTO> exceptionHandle(EntityNotFoundException exc) {
-        log.warn("Entity with id not found");
+        log.warn("Entity not found exception: {}", exc.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponseDTO(HttpStatus.NOT_FOUND.value(), exc.getMessage()));
     }
@@ -70,14 +76,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponseDTO> exceptionHandle(HttpMessageNotReadableException exc) {
-        log.warn("Request missing");
+        // Вытаскиваем корень проблемы (например, синтаксическая ошибка JSON парсинга)
+        log.warn("Malformed JSON request or missing body: {}", exc.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), "Request body is missing"));
+                .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), "Request body is missing or malformed JSON"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGlobal(Exception exc) {
-        log.error("Internal server error: ", exc);
+        log.error("Unhandled internal server error: ", exc);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponseDTO(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
     }

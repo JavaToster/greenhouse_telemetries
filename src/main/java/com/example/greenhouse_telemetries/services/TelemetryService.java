@@ -33,9 +33,9 @@ public class TelemetryService {
 
     @Transactional
     public Telemetry add(AddTelemetryDTO dto, UUID deviceId) {
-        log.debug("Adding telemetry: temperature={}, airHumidity={}, soilHumidity={}, illumination={}",
-                dto.getTemperature(), dto.getAirHumidity(), dto.getSoilHumidity(), dto.getIllumination());
-
+        // Поднимаем уровень до INFO, так как сохранение метрики — важное бизнес-событие
+        log.info("Saving new telemetry for device [{}]: temp={}, airHum={}, soilHum={}, lux={}",
+                deviceId, dto.getTemperature(), dto.getAirHumidity(), dto.getSoilHumidity(), dto.getIllumination());
 
         Telemetry telemetry = new Telemetry(
                 deviceId,
@@ -45,20 +45,30 @@ public class TelemetryService {
                 dto.getIllumination()
         );
 
-        return telemetryStore.save(telemetry);
+        Telemetry saved = telemetryStore.save(telemetry);
+        log.debug("Telemetry successfully saved with database id: {}", saved.getId());
+        return saved;
     }
 
     public ClusterTelemetryDTO findByCluster(UUID clusterId, int page, int size) {
+        log.info("Fetching telemetry for cluster [{}] (page: {}, size: {})", clusterId, page, size);
+
+        // Логируем запрос во внешний микросервис инвентаря
+        log.debug("Requesting devices from inventory for cluster [{}] via Feign", clusterId);
         List<DeviceDTO> devices = deviceClient.getDevicesByCluster(clusterId);
+        log.debug("Inventory returned {} devices for cluster [{}]", devices.size(), clusterId);
 
         if (devices.isEmpty()) {
+            log.warn("Cluster [{}] has no registered devices in inventory. Returning empty telemetry.", clusterId);
             return createEmptyClusterTelemetryDTO(clusterId, page, size);
         }
 
         List<UUID> deviceIds = devices.stream().map(DeviceDTO::getId).toList();
+        log.debug("Extracted device IDs for DB query: {}", deviceIds);
 
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Telemetry> telemetryPage = telemetryStore.findByDeviceId(deviceIds, pageable);
+        log.debug("DB query found {} telemetry records across all cluster devices", telemetryPage.getNumberOfElements());
 
         Map<UUID, List<TelemetryDTO>> telemetryByDevice = telemetryPage.getContent().stream()
                 .collect(Collectors.groupingBy(
@@ -82,6 +92,9 @@ public class TelemetryService {
         result.setSize(telemetryPage.getSize());
         result.setTotalElements(telemetryPage.getTotalElements());
         result.setTotalPages(telemetryPage.getTotalPages());
+
+        log.info("Successfully compiled cluster [{}] telemetry. Total pages: {}, total elements: {}",
+                clusterId, result.getTotalPages(), result.getTotalElements());
 
         return result;
     }
