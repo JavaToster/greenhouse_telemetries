@@ -33,7 +33,6 @@ public class TelemetryService {
 
     @Transactional
     public Telemetry add(AddTelemetryDTO dto, UUID deviceId) {
-        // Поднимаем уровень до INFO, так как сохранение метрики — важное бизнес-событие
         log.info("Saving new telemetry for device [{}]: temp={}, airHum={}, soilHum={}, lux={}",
                 deviceId, dto.getTemperature(), dto.getAirHumidity(), dto.getSoilHumidity(), dto.getIllumination());
 
@@ -53,7 +52,6 @@ public class TelemetryService {
     public ClusterTelemetryDTO findByCluster(UUID clusterId, int page, int size) {
         log.info("Fetching telemetry for cluster [{}] (page: {}, size: {})", clusterId, page, size);
 
-        // Логируем запрос во внешний микросервис инвентаря
         log.debug("Requesting devices from inventory for cluster [{}] via Feign", clusterId);
         List<DeviceDTO> devices = deviceClient.getDevicesByCluster(clusterId);
         log.debug("Inventory returned {} devices for cluster [{}]", devices.size(), clusterId);
