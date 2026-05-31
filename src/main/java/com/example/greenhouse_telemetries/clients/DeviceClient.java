@@ -16,7 +16,7 @@ import java.util.UUID;
         configuration = InventoryClientErrorDecoder.class
 )
 public interface DeviceClient {
-    @GetMapping("/clusters/{clusterId}")
+    @GetMapping("/my-clusters/{clusterId}")
     List<DeviceDTO> getDevicesByCluster(@PathVariable("clusterId")UUID clusterId);
 
 }
