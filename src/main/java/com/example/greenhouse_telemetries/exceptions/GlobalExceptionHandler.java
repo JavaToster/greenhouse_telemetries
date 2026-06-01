@@ -2,6 +2,7 @@ package com.example.greenhouse_telemetries.exceptions;
 
 import com.example.greenhouse_telemetries.DTO.error.ErrorResponseDTO;
 import com.example.greenhouse_telemetries.exceptions.auth.UserAlreadyExistException;
+import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
@@ -82,9 +83,18 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), "Request body is missing or malformed JSON"));
     }
 
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ErrorResponseDTO> exceptionHandle(FeignException exc){
+        log.error("Feign client communication failed: status [{}], method [{}], message [{}]",
+                exc.status(), exc.request() != null ? exc.request().httpMethod() : "UNKNOWN", exc.getMessage());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponseDTO(HttpStatus.INTERNAL_SERVER_ERROR.value(), "External service communication error"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGlobal(Exception exc) {
-        log.error("Unhandled internal server error: ", exc);
+        log.error("Unhandled internal exception in inventory service: ", exc);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponseDTO(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
     }

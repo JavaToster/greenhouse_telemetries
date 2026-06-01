@@ -28,7 +28,7 @@ public class TelemetryStore implements GenericStore<Telemetry, Long> {
         return telemetryRepository.save(telemetry);
     }
 
-    public Page<Telemetry> findByDeviceId(List<UUID> deviceIds, PageRequest pageable) {
-        return telemetryRepository.findByDeviceIdIn(deviceIds,pageable);
+    public List<Telemetry> findTopNByDeviceIds(List<UUID> ids, int size){
+        return telemetryRepository.findTopNByDeviceIds(ids, size);
     }
 }

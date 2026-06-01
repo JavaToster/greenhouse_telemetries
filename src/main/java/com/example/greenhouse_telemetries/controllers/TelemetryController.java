@@ -31,10 +31,9 @@ public class TelemetryController {
     @PreAuthorize("hasRole('OWNER') and principal instanceof T(com.example.greenhouse_telemetries.security.principals.UserPrincipal)")
     public ResponseEntity<ClusterTelemetryDTO> getClusterTelemetries(
             @PathVariable("clusterId") UUID clusterId,
-            @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "50") int size
     ) {
-        ClusterTelemetryDTO telemetry = telemetryService.findByCluster(clusterId, page, size);
+        ClusterTelemetryDTO telemetry = telemetryService.findByCluster(clusterId, size);
         return ResponseEntity.ok(telemetry);
     }
 }

@@ -11,10 +11,9 @@ import com.example.greenhouse_telemetries.store.TelemetryStore;
 import com.example.greenhouse_telemetries.util.Convertor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -25,13 +24,13 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) // По умолчанию быстрая оптимизация на чтение
 public class TelemetryService {
     private final TelemetryStore telemetryStore;
     private final DeviceClient deviceClient;
     private final Convertor convertor;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.READ_COMMITTED)
     public Telemetry add(AddTelemetryDTO dto, UUID deviceId) {
         log.info("Saving new telemetry for device [{}]: temp={}, airHum={}, soilHum={}, lux={}",
                 deviceId, dto.getTemperature(), dto.getAirHumidity(), dto.getSoilHumidity(), dto.getIllumination());
@@ -49,8 +48,8 @@ public class TelemetryService {
         return saved;
     }
 
-    public ClusterTelemetryDTO findByCluster(UUID clusterId, int page, int size) {
-        log.info("Fetching telemetry for cluster [{}] (page: {}, size: {})", clusterId, page, size);
+    public ClusterTelemetryDTO findByCluster(UUID clusterId, int size) {
+        log.info("Fetching top {} telemetry records for each device in cluster [{}]", size, clusterId);
 
         log.debug("Requesting devices from inventory for cluster [{}] via Feign", clusterId);
         List<DeviceDTO> devices = deviceClient.getDevicesByCluster(clusterId);
@@ -58,17 +57,16 @@ public class TelemetryService {
 
         if (devices.isEmpty()) {
             log.warn("Cluster [{}] has no registered devices in inventory. Returning empty telemetry.", clusterId);
-            return createEmptyClusterTelemetryDTO(clusterId, page, size);
+            return createEmptyClusterTelemetryDTO(clusterId, size);
         }
 
         List<UUID> deviceIds = devices.stream().map(DeviceDTO::getId).toList();
-        log.debug("Extracted device IDs for DB query: {}", deviceIds);
+        log.debug("Extracted device IDs for window-function DB query: {}", deviceIds);
 
-        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Telemetry> telemetryPage = telemetryStore.findByDeviceId(deviceIds, pageable);
-        log.debug("DB query found {} telemetry records across all cluster devices", telemetryPage.getNumberOfElements());
+        List<Telemetry> latestTelemetries = telemetryStore.findTopNByDeviceIds(deviceIds, size);
+        log.debug("DB query returned {} total telemetry records for all devices combined", latestTelemetries.size());
 
-        Map<UUID, List<TelemetryDTO>> telemetryByDevice = telemetryPage.getContent().stream()
+        Map<UUID, List<TelemetryDTO>> telemetryByDevice = latestTelemetries.stream()
                 .collect(Collectors.groupingBy(
                         Telemetry::getDeviceId,
                         Collectors.mapping(convertor::convertToTelemetryDTO, Collectors.toList())
@@ -86,22 +84,20 @@ public class TelemetryService {
         ClusterTelemetryDTO result = new ClusterTelemetryDTO();
         result.setClusterId(clusterId);
         result.setDevices(deviceTelemetry);
-        result.setPage(telemetryPage.getNumber());
-        result.setSize(telemetryPage.getSize());
-        result.setTotalElements(telemetryPage.getTotalElements());
-        result.setTotalPages(telemetryPage.getTotalPages());
+        result.setPage(0);
+        result.setSize(size);
+        result.setTotalElements(latestTelemetries.size());
+        result.setTotalPages(1);
 
-        log.info("Successfully compiled cluster [{}] telemetry. Total pages: {}, total elements: {}",
-                clusterId, result.getTotalPages(), result.getTotalElements());
-
+        log.info("Successfully compiled cluster [{}] telemetry with window-function filtering.", clusterId);
         return result;
     }
 
-    private ClusterTelemetryDTO createEmptyClusterTelemetryDTO(UUID clusterId, int page, int size) {
+    private ClusterTelemetryDTO createEmptyClusterTelemetryDTO(UUID clusterId, int size) {
         ClusterTelemetryDTO result = new ClusterTelemetryDTO();
         result.setClusterId(clusterId);
         result.setDevices(List.of());
-        result.setPage(page);
+        result.setPage(0);
         result.setSize(size);
         result.setTotalElements(0);
         result.setTotalPages(0);
