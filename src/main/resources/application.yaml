@@ -3,7 +3,7 @@ server:
 
 spring:
   config:
-    import: optional:file:.env
+    import: optional:file:../.env
   application:
     name: greenhouse_telemetries
   datasource:
