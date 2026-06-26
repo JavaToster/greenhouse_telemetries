@@ -29,7 +29,6 @@ spring:
         max-idle: 5
         min-idle: 1
     timeout: 60000
-  
 
   mvc:
     hidden:
