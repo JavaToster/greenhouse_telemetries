@@ -10,8 +10,4 @@ import java.util.UUID;
 public class ClusterTelemetryDTO {
     private UUID clusterId;
     private List<DeviceTelemetryDTO> devices;
-    private int page;
-    private int size;
-    private long totalElements;
-    private int totalPages;
 }

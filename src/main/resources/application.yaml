@@ -6,11 +6,13 @@ spring:
     import: optional:file:../.env
   application:
     name: greenhouse_telemetries
+
   datasource:
     driver-class-name: org.postgresql.Driver
     url: ${TELEMETRIES_SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+
   jpa:
     properties:
       hibernate:
@@ -20,15 +22,6 @@ spring:
         jdbc:
           batch_size: 20
           generate_statistics: true
-  redis:
-    host: ${REDIS_HOST}
-    port: ${REDIS_PORT}
-    jedis:
-      pool:
-        max-active: 10
-        max-idle: 5
-        min-idle: 1
-    timeout: 60000
 
   mvc:
     hidden:
@@ -39,14 +32,16 @@ spring:
   security:
     jwt:
       secret: ${SECURITY_JWT}
-  
+
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+
   cloud:
     openfeign:
       client:
@@ -54,8 +49,8 @@ spring:
           default:
             connect-timeout: 5000
             read-timeout: 5000
+
 app:
   clients:
     inventory:
-      devices:
-        url: ${CLIENTS_INVENTORY_DEVICES}
+      url: ${CLIENTS_INVENTORY}

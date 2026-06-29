@@ -4,6 +4,7 @@ import com.example.greenhouse_telemetries.DTO.error.ErrorResponseDTO;
 import com.example.greenhouse_telemetries.exceptions.auth.UserAlreadyExistException;
 import feign.FeignException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.coyote.BadRequestException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -81,6 +82,13 @@ public class GlobalExceptionHandler {
         log.warn("Malformed JSON request or missing body: {}", exc.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), "Request body is missing or malformed JSON"));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponseDTO> exceptionHandle(ConstraintViolationException exc){
+        log.warn("Validation failed: {}", exc.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponseDTO(HttpStatus.BAD_REQUEST.value(), exc.getMessage()));
     }
 
     @ExceptionHandler(FeignException.class)

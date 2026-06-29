@@ -23,7 +23,6 @@ public class FeignJwtInterceptor implements RequestInterceptor {
                     template.method(), template.url());
             template.header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + jwtToken);
         } else {
-            // Предупреждаем, если контекст пуст или токен не строка — это спасет кучу времени при отладке
             log.warn("Feign interceptor: No valid JWT token found in SecurityContext. Request [{} {}] will be sent without Authorization header",
                     template.method(), template.url());
         }

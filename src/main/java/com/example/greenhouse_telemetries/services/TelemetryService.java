@@ -48,8 +48,8 @@ public class TelemetryService {
         return saved;
     }
 
-    public ClusterTelemetryDTO findByCluster(UUID clusterId, int size) {
-        log.info("Fetching top {} telemetry records for each device in cluster [{}]", size, clusterId);
+    public ClusterTelemetryDTO findByCluster(UUID clusterId, int limit) {
+        log.info("Fetching top {} telemetry records for each device in cluster [{}]", limit, clusterId);
 
         log.debug("Requesting devices from inventory for cluster [{}] via Feign", clusterId);
         List<DeviceDTO> devices = deviceClient.getDevicesByCluster(clusterId);
@@ -57,13 +57,13 @@ public class TelemetryService {
 
         if (devices.isEmpty()) {
             log.warn("Cluster [{}] has no registered devices in inventory. Returning empty telemetry.", clusterId);
-            return createEmptyClusterTelemetryDTO(clusterId, size);
+            return createEmptyClusterTelemetryDTO(clusterId);
         }
 
         List<UUID> deviceIds = devices.stream().map(DeviceDTO::getId).toList();
         log.debug("Extracted device IDs for window-function DB query: {}", deviceIds);
 
-        List<Telemetry> latestTelemetries = telemetryStore.findTopNByDeviceIds(deviceIds, size);
+        List<Telemetry> latestTelemetries = telemetryStore.findTopNByDeviceIds(deviceIds, limit);
         log.debug("DB query returned {} total telemetry records for all devices combined", latestTelemetries.size());
 
         Map<UUID, List<TelemetryDTO>> telemetryByDevice = latestTelemetries.stream()
@@ -84,23 +84,15 @@ public class TelemetryService {
         ClusterTelemetryDTO result = new ClusterTelemetryDTO();
         result.setClusterId(clusterId);
         result.setDevices(deviceTelemetry);
-        result.setPage(0);
-        result.setSize(size);
-        result.setTotalElements(latestTelemetries.size());
-        result.setTotalPages(1);
 
         log.info("Successfully compiled cluster [{}] telemetry with window-function filtering.", clusterId);
         return result;
     }
 
-    private ClusterTelemetryDTO createEmptyClusterTelemetryDTO(UUID clusterId, int size) {
+    private ClusterTelemetryDTO createEmptyClusterTelemetryDTO(UUID clusterId) {
         ClusterTelemetryDTO result = new ClusterTelemetryDTO();
         result.setClusterId(clusterId);
         result.setDevices(List.of());
-        result.setPage(0);
-        result.setSize(size);
-        result.setTotalElements(0);
-        result.setTotalPages(0);
         return result;
     }
 }
